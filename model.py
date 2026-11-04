@@ -166,6 +166,81 @@ class MaskModel:
         return mask.resize(img.size, Image.LANCZOS)
 
 
+FACE_FILE = "face_detector.onnx"
+FACE_URL = "https://github.com/Linzaer/Ultra-Light-Fast-Generic-Face-Detector-1MB/raw/master/models/onnx/version-RFB-320.onnx"
+FACE_SIZE = 1270727
+_face_lock = threading.Lock()
+_face = None
+_face_failed = False
+
+
+class FaceModel:
+    """Tiny (1.3 MB) face detector run through onnxruntime - replaces OpenCV, so nothing else is needed."""
+
+    def __init__(self, path):
+        import onnxruntime as ort
+
+        so = ort.SessionOptions()
+        so.log_severity_level = 3
+        self.sess = ort.InferenceSession(str(path), sess_options=so, providers=["CPUExecutionProvider"])
+
+    def detect(self, img):
+        """PIL image -> (x, y, w, h) of the largest face in image pixels, or None."""
+        import numpy as np
+        from PIL import Image
+
+        W, H = img.size
+        a = np.asarray(img.convert("RGB").resize((320, 240), Image.BILINEAR), dtype=np.float32)
+        a = ((a - 127.0) / 128.0).transpose(2, 0, 1)[None].astype(np.float32)
+        scores, boxes = self.sess.run(None, {"input": a})
+        sc, bx = scores[0, :, 1], boxes[0]
+        k = np.where(sc > 0.6)[0]
+        if not len(k):
+            return None
+        best = bx[k[np.argmax(sc[k] * (bx[k, 2] - bx[k, 0]))]]
+
+        def iou(p, q):
+            ix = max(0.0, min(p[2], q[2]) - max(p[0], q[0]))
+            iy = max(0.0, min(p[3], q[3]) - max(p[1], q[1]))
+            inter = ix * iy
+            return inter / max(1e-9, (p[2] - p[0]) * (p[3] - p[1]) + (q[2] - q[0]) * (q[3] - q[1]) - inter)
+
+        sel = [i for i in k if iou(best, bx[i]) > 0.5]
+        w = sc[sel][:, None]
+        b = (bx[sel] * w).sum(0) / w.sum()
+        return (float(b[0] * W), float(b[1] * H), float((b[2] - b[0]) * W), float((b[3] - b[1]) * H))
+
+
+def get_face():
+    """Face detector, or None if unavailable (the app then falls back to a mask-based crop)."""
+    global _face, _face_failed
+    with _face_lock:
+        if _face is not None or _face_failed:
+            return _face
+        try:
+            path = None
+            for d in _candidate_dirs():
+                f = d / FACE_FILE
+                if f.is_file() and f.stat().st_size == FACE_SIZE:
+                    path = f
+                    break
+            if path is None:  # tiny one-time download, only when running from source
+                dest = app_data_dir() / "models"
+                dest.mkdir(parents=True, exist_ok=True)
+                path = dest / FACE_FILE
+                req = urllib.request.Request(FACE_URL, headers={"User-Agent": "PassportPhotoMaker/2.0"})
+                with urllib.request.urlopen(req, timeout=15) as r:
+                    data = r.read()
+                if len(data) != FACE_SIZE:
+                    raise RuntimeError("face model download incomplete")
+                path.write_bytes(data)
+            _face = FaceModel(path)
+        except Exception:  # noqa
+            log.exception("face detector unavailable - using fallback crop")
+            _face_failed = True
+        return _face
+
+
 def session_ready():
     return _session is not None
 

@@ -1,6 +1,5 @@
 onnxruntime
 pillow
-opencv-python-headless
 numpy
 sv-ttk
 tkinterdnd2

@@ -20,7 +20,7 @@ jobs:
         run: |
           pyinstaller --noconfirm --onedir --windowed --name PassportPhotoMaker `
             --add-data "models;models" `
-            --collect-all onnxruntime --collect-all tkinterdnd2 --collect-all sv_ttk --collect-data cv2 `
+            --collect-all onnxruntime --collect-all tkinterdnd2 --collect-all sv_ttk `
             --hidden-import win32print --hidden-import win32ui `
             main.py
       - name: Self-test the built app (AI + face + sheet + save)

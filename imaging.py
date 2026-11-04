@@ -7,10 +7,10 @@ is a cheap re-render from that cache, so editing never re-runs the AI.
 import math
 import os
 
-import cv2
 import numpy as np
 from PIL import Image, ImageEnhance, ImageOps
 
+import model
 import units
 
 MAX_SIDE = 1600  # working resolution: plenty for a 413 x 531 px print photo, and much faster
@@ -66,33 +66,15 @@ def remove_background(img, session):
     return rgba
 
 
-_cascade = None
-
-
-def _get_cascade():
-    global _cascade
-    if _cascade is None:
-        _cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-    return _cascade
-
-
 def detect_face(rgb):
-    """Largest frontal face as (x, y, w, h) in image pixels, or None. Runs on a small copy for speed."""
-    w, h = rgb.size
-    scale = 720.0 / max(w, h) if max(w, h) > 720 else 1.0
-    small = rgb.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.BILINEAR) if scale < 1 else rgb
-    gray = cv2.equalizeHist(cv2.cvtColor(np.asarray(small), cv2.COLOR_RGB2GRAY))
-    min_side = max(24, int(min(small.size) * 0.08))
-    casc = _get_cascade()
-    faces = ()
-    for sf, mn in ((1.1, 5), (1.05, 3)):
-        faces = casc.detectMultiScale(gray, sf, mn, minSize=(min_side, min_side))
-        if len(faces):
-            break
-    if not len(faces):
+    """Largest face as (x, y, w, h) in image pixels, or None (caller falls back to a mask-based crop)."""
+    fm = model.get_face()
+    if fm is None:
         return None
-    x, y, fw, fh = max(faces, key=lambda f: f[2] * f[3])
-    return (x / scale, y / scale, fw / scale, fh / scale)
+    try:
+        return fm.detect(rgb)
+    except Exception:  # noqa
+        return None
 
 
 def analyse(cutout, face, has_alpha):
@@ -107,10 +89,10 @@ def analyse(cutout, face, has_alpha):
     if face is not None:
         x, y, w, h = face
         cx = x + w / 2.0
-        chin = y + h * 1.10
-        top = top_mask if has_alpha else y - 0.40 * h
-        if top >= y - 0.05 * h or top < y - 0.95 * h:   # mask miss or stray blob above the head
-            top = y - 0.40 * h
+        chin = y + h * 0.99          # detector box bottom sits on the chin
+        top = top_mask if has_alpha else y - 0.25 * h
+        if top >= y - 0.02 * h or top < y - 0.7 * h:    # mask miss or stray blob above the head
+            top = y - 0.25 * h
         return dict(cx=cx, top=top, chin=chin, found=True)
     # fallback: assume head & shoulders framing
     top = top_mask
