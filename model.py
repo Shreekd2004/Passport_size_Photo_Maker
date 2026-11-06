@@ -2,7 +2,7 @@
 
 Search order for u2net.onnx:
   1. bundled next to the app (installed builds ship the model -> no download ever)
-  2. %LOCALAPPDATA%\\PassportPhotoMaker\\models (cached from an earlier download)
+  2. %LOCALAPPDATA%\\SnapMitra\\models (cached from an earlier download)
   3. one-time download with progress, timeout, MD5 check, and retry support.
 The ONNX session is created ONCE and reused for every photo.
 """
@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-log = logging.getLogger("ppm")
+log = logging.getLogger("snapmitra")
 
 MODEL_FILE = "u2net.onnx"
 MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
@@ -35,7 +35,7 @@ class ModelError(Exception):
 
 def app_data_dir():
     base = os.environ.get("LOCALAPPDATA") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    p = Path(base) / "PassportPhotoMaker"
+    p = Path(base) / "SnapMitra"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
@@ -80,7 +80,7 @@ def download_model(progress=None, cancel=None):
     dest_dir.mkdir(parents=True, exist_ok=True)
     part = dest_dir / (MODEL_FILE + ".part")
     final = dest_dir / MODEL_FILE
-    req = urllib.request.Request(MODEL_URL, headers={"User-Agent": "PassportPhotoMaker/2.0"})
+    req = urllib.request.Request(MODEL_URL, headers={"User-Agent": "SnapMitra/2.0"})
     md5 = hashlib.md5()
     done = 0
     last = 0.0
@@ -228,7 +228,7 @@ def get_face():
                 dest = app_data_dir() / "models"
                 dest.mkdir(parents=True, exist_ok=True)
                 path = dest / FACE_FILE
-                req = urllib.request.Request(FACE_URL, headers={"User-Agent": "PassportPhotoMaker/2.0"})
+                req = urllib.request.Request(FACE_URL, headers={"User-Agent": "SnapMitra/2.0"})
                 with urllib.request.urlopen(req, timeout=15) as r:
                     data = r.read()
                 if len(data) != FACE_SIZE:

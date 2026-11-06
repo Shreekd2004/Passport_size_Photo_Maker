@@ -18,7 +18,7 @@ import model
 import printing
 from model import Cancelled, ModelError
 
-log = logging.getLogger("ppm")
+log = logging.getLogger("snapmitra")
 _ids = itertools.count(1)
 
 
@@ -64,7 +64,7 @@ def run_job(job, q):
 
 def _run(job, prog, check, put):
     P = job.params
-    mode, spec, bg = P["mode"], P["spec"], P["bg"]
+    remove, spec, style = P["remove"], P["spec"], P["style"]
 
     if job.kind == "warmup":
         prog(0, "Loading AI model", "")
@@ -73,12 +73,13 @@ def _run(job, prog, check, put):
             prog(100.0 * d / max(1, t) * 0.9, "Downloading AI model (one time only)", f"{d / 1e6:.0f} / {t / 1e6:.0f} MB")
 
         model.get_session(dl, job.cancel)
+        model.get_face()
         prog(100, "AI model ready", "")
         return
 
-    todo = [p for p in job.photos if imaging.needs_processing(p, mode)]
+    todo = [p for p in job.photos if imaging.needs_processing(p, remove)]
     n = len(todo)
-    need_ai = mode == "ai" and n > 0
+    need_ai = remove and any(p.mask is None for p in todo)
     W_LOAD = 10.0 if need_ai else 0.0
     W_PHOTO = 80.0
     W_SHEET = 20.0 if job.kind == "sheet" else 0.0
@@ -104,31 +105,31 @@ def _run(job, prog, check, put):
         p.state = "processing"
         t0 = time.time()
         try:
-            at(0, "Reading photo", det)
-            img = imaging.load_image(p.path)
+            if p.src is None:
+                at(0, "Reading photo", det)
+                p.src = imaging.load_image(p.path)
+                p.mask, p.face_checked, p.face_rect = None, False, None
             check()
-            at(5, "Removing background" if mode == "ai" else "Preparing photo", det)
-            rgba = imaging.remove_background(img, session) if mode == "ai" else img.convert("RGBA")
+            if remove and p.mask is None:
+                at(5, "Removing background", det)
+                p.mask = session.predict(p.src)
             check()
-            at(55, "Detecting face", det)
-            face = imaging.detect_face(img)
+            if not p.face_checked:
+                at(55, "Detecting face", det)
+                p.face_rect = imaging.detect_face(p.src)
+                p.face_checked = True
             check()
-            at(63, "Cropping photograph", det)
-            p.face = imaging.analyse(rgba, face, mode == "ai")
-            p.cutout, p.mode = rgba, mode
-            at(68, "Preparing passport-size image", det)
-            imaging.final_image(p, spec, bg)
+            p.reset_derived()
+            imaging.final_cell(p, spec, style, lambda stage: at(
+                {"Cropping photograph": 63, "Applying text overlay": 70, "Preparing final image": 75}[stage], stage, det))
             p.state, p.error = "ready", ""
-            log.info("processed %s in %.2fs (face=%s)", p.name, time.time() - t0, p.face["found"])
-        except Cancelled:
-            p.state = "new"
-            raise
-        except ModelError:
+            log.info("processed %s in %.2fs (face=%s)", p.name, time.time() - t0, p.face_found)
+        except (Cancelled, ModelError):
             p.state = "new"
             raise
         except Exception as e:  # noqa - one bad file must not stop the others
             log.exception("photo failed: %s", p.path)
-            p.state, p.error, p.cutout = "error", f"{type(e).__name__}: {e}", None
+            p.state, p.error, p.src, p.mask = "error", f"{type(e).__name__}: {e}", None, None
         put("photo", job.id, p)
         base[0] += W_PHOTO
 
@@ -136,14 +137,14 @@ def _run(job, prog, check, put):
         prog(100, "Done", "")
         return
 
-    ready = [p for p in job.photos if p.state == "ready" and p.cutout is not None]
+    ready = [p for p in job.photos if p.state == "ready" and p.src is not None]
     if not ready:
         raise layout.LayoutError("No photo is ready. Check the error shown next to each photo.")
     check()
-    at(0, f"Generating {spec.paper_name} sheet", f"{sum(p.copies for p in ready)} photos")
-    items = [(imaging.final_image(p, spec, bg), p.copies) for p in ready]
+    at(0, "Generating sheet", f"{sum(p.copies for p in ready)} photos")
+    items = [(*imaging.final_cell(p, spec, style), p.copies) for p in ready]
     check()
-    at(8, f"Generating {spec.paper_name} sheet", "placing photos")
+    at(8, "Generating sheet", "placing photos")
     job.result = layout.build_pages(spec, items)
     check()
     at(14, "Finalising output", "")
@@ -152,6 +153,6 @@ def _run(job, prog, check, put):
         job.saved = layout.save_pages(job.result, path, fmt)
     if P.get("printer"):
         at(17, "Sending to printer", P["printer"])
-        printing.print_pages(job.result, P["printer"])
+        printing.print_pages(job.result, P["printer"], copies=int(P.get("sheet_copies", 1)))
         job.printed = True
     prog(100, "Done", "")

@@ -1,4 +1,4 @@
-name: Build Windows app
+name: Build SnapMitra for Windows
 on:
   workflow_dispatch:
   push:
@@ -13,27 +13,37 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
-      - name: Download AI model (gets bundled inside the app, so the app never downloads anything)
+      - name: Run automated tests (layout, text overlay, guides, export, ...)
+        shell: pwsh
+        run: |
+          python tools/fetch_model.py
+          $env:SM_MODEL_DIR = "$PWD\models"
+          python tests/run_tests.py
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true      # informational: the build below has its own hard self-test
+      - name: Download AI models (they are bundled INSIDE the app - it never downloads anything)
         run: python tools/fetch_model.py
-      - name: Build app folder
+      - name: Build SnapMitra (PyInstaller spec)
+        run: pyinstaller --noconfirm SnapMitra.spec
+      - name: Self-test the built app (AI + face + text + guides + stamp size + PNG/JPG/PDF)
         shell: pwsh
         run: |
-          pyinstaller --noconfirm --onedir --windowed --name PassportPhotoMaker `
-            --add-data "models;models" `
-            --collect-all onnxruntime --collect-all tkinterdnd2 --collect-all sv_ttk `
-            --hidden-import win32print --hidden-import win32ui `
-            main.py
-      - name: Self-test the built app (AI + face + sheet + save)
+          $p = Start-Process -FilePath "dist\SnapMitra\SnapMitra.exe" `
+                 -ArgumentList "--selftest","$PWD\tests\sample_portrait.png","$PWD\selftest_out" -Wait -PassThru
+          Get-Content "$env:LOCALAPPDATA\SnapMitra\log.txt" -ErrorAction SilentlyContinue | Select-Object -Last 20
+          if ($p.ExitCode -ne 0 -or -not (Test-Path selftest_out\selftest.pdf)) { Write-Error "SELF-TEST FAILED"; exit 1 }
+      - name: Start the real window for 12 seconds (crash check)
         shell: pwsh
+        continue-on-error: true
         run: |
-          python tools/make_sample.py sample.png
-          $p = Start-Process -FilePath "dist\PassportPhotoMaker\PassportPhotoMaker.exe" `
-                 -ArgumentList "--selftest","$PWD\sample.png","$PWD\selftest.png" -Wait -PassThru
-          Get-Content "$env:LOCALAPPDATA\PassportPhotoMaker\log.txt" -ErrorAction SilentlyContinue | Select-Object -Last 15
-          if ($p.ExitCode -ne 0 -or -not (Test-Path selftest.png)) { Write-Error "SELF-TEST FAILED"; exit 1 }
+          $p = Start-Process -FilePath "dist\SnapMitra\SnapMitra.exe" -PassThru
+          Start-Sleep -Seconds 12
+          if ($p.HasExited) { Write-Error "SnapMitra window exited early (code $($p.ExitCode))"; exit 1 }
+          Write-Host "Window stayed open - OK"; Stop-Process -Id $p.Id -Force
       - name: Portable zip
         shell: pwsh
-        run: Compress-Archive -Path dist\PassportPhotoMaker -DestinationPath PassportPhotoMaker-portable.zip
+        run: Compress-Archive -Path dist\SnapMitra -DestinationPath SnapMitra-portable.zip
       - name: Build installer (optional)
         continue-on-error: true
         shell: pwsh
@@ -43,8 +53,8 @@ jobs:
           & $iscc installer.iss
       - uses: actions/upload-artifact@v4
         with:
-          name: PassportPhotoMaker-Windows
+          name: SnapMitra-Windows
           path: |
-            installer_out/PassportPhotoMaker-Setup.exe
-            PassportPhotoMaker-portable.zip
+            installer_out/SnapMitra-Setup.exe
+            SnapMitra-portable.zip
           if-no-files-found: warn

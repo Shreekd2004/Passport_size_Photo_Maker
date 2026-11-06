@@ -1,0 +1,96 @@
+SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless; Windows build/print NOT run here)
+
+=== tests/run_tests.py ===
+[PASS]  1. Single photograph processed  (3.5s)
+[PASS]  5. AI background removal produces a mask  
+[PASS]  6. Face detected; all processing stages reported  stages=['Loading AI model', 'Reading photo', 'Removing background', 'Detecting face', 'Cropping photograph', 'Applying text overlay', 'Preparing final image', 'Done']
+[PASS]  4. Different image formats (jpg, jpeg, png, webp, bmp, tiff, RGBA png, palette png)  8 files, 9.1s, states=all ready
+[PASS]  2. Multiple photographs processed  (3.7s)
+[PASS]  3. Large photograph (6000x4000, 1.9 MB)  working size (1600, 1067) (cap 1600), 1.1s
+[PASS] 22. Background colour 'white' applied  corner=(255, 255, 255) expected=(255, 255, 255)
+[PASS] 22. Background colour 'lightblue' applied  corner=(185, 214, 242) expected=(185, 214, 242)
+[PASS] 22. Background colour 'blue' applied  corner=(36, 112, 214) expected=(36, 112, 214)
+[PASS] 22. Background colour 'red' applied  corner=(200, 35, 45) expected=(200, 35, 45)
+[PASS] 22. Custom colour (#33AA66)  
+[PASS] 22. Retain original background option (original kept, not replaced by the colour)  removed->(200, 35, 45)  kept original->(195, 184, 177)
+[PASS]  7. Manual crop (zoom/move/rotate/brightness/contrast/sharpness) changes the output  mean diff 70.9
+[PASS]  7. No face found -> no crash, manual framing still works  
+[PASS]  7. Manual crop works on a photo without a face  
+[PASS]  8. One photograph, 5 copies  
+[PASS]  9. Two photographs (4 + 1)  
+[PASS] 10. Three photographs (4 + 1 + 8), continuous  row1=[0, 0, 0, 0, 1] row2=[2, 2, 2, 2, 2] row3=[2, 2, 2]
+[PASS] 11. Ten photographs, different copy counts [6, 3, 7, 11, 1, 2, 9, 2, 6, 10]  57 photos, 3 page(s), upload order kept, no gaps
+[PASS] 12. Continuous packing = brief's example (P1x4,P2x1,P3x8,P4x3)  rows: [[1, 1, 1, 1, 2], [3, 3, 3, 3, 3], [3, 3, 3, 4, 4], [4]]
+[PASS] 13. Group-by-photo: every photo starts at column 1 of a new row  starts={0: (0, 0), 1: (1, 0), 2: (2, 0), 3: (4, 0)}
+[PASS] 14. Multiple pages (80 photos, 28/page)  3 pages
+[PASS] 12. Continuous packing is the DEFAULT mode  
+[PASS] 15. Stamp size 25x25 mm generated  (295, 295)px, 7x10=70 per A4
+[PASS] 16. Custom dimensions & unit conversion (2 x 2 in = 50.8 mm = 600 px)  
+[PASS] 16. Custom 1.5 x 2 in photo renders at 450 x 600 px  (450, 600)
+[PASS] 17. Text INSIDE photo (bottom centre only)  changed rows 476-511 of 531
+[PASS] 18. Text BELOW photo (photo area untouched, strip added)  cell (413, 603), photo 531px + strip 72px
+[PASS] 19. Different text colours (red inside / blue below)  
+[PASS] 20. Automatic (today) and manual date  'Ravi Kumar  |  05/11/2026' | 'X\n01/01/2030'
+[PASS] 17. Original uploaded file is never modified  
+[PASS] 17. Every duplicate carries the same overlay (5 copies pixel-identical, text present)  
+[PASS] 21. Cutting guides 'thin' drawn in the gap centre  dark fraction along guide = 1.00
+[PASS] 21. Cutting guides 'thin' never overlap photo content  
+[PASS] 21. Cutting guides 'dotted' drawn in the gap centre  dark fraction along guide = 0.55
+[PASS] 21. Cutting guides 'dotted' never overlap photo content  
+[PASS] 21. Gaps auto-widen to >= 2 mm when guides are on  
+[PASS] 14. Paper sizes A4 / A5 / 4x6 / 5x7 + automatic orientation  {'A4': (5, 5, False), 'A5': (3, 4, False), '4 x 6 in': (2, 2, False), '5 x 7 in': (3, 3, False)}
+[PASS] 14. Photo too big for paper -> clear error, no distortion  
+[PASS] 23. PNG export (multi-page naming, 300 DPI)  ['export_page1of4.png', 'export_page2of4.png', 'export_page3of4.png', 'export_page4of4.png'] dpi=(299.9994, 299.9994)
+[PASS] 24. JPG export (300 DPI)  
+[PASS] 25. PDF export: one multi-page file, exact A4 page size  4 pages, MediaBox=(595.2, 841.92) pt (A4 = 595.28 x 841.89)
+[PASS] 25. Overlay + guides baked into every export format  
+[PASS] 27. MEASURED on exported page @300 DPI: photo 35 x 45 mm, gap 4 mm, page 210 x 297 mm  photo 34.97 x 44.96 mm, pitch 38.95 mm (35+4), page 210.0 x 297.0 mm
+[PASS] 27. 4 x 6 inch paper = 1200 x 1800 px  (1200, 1800)
+[PASS] 26. Direct printing LOGIC (mock printer): 2 pages x 2 copies, actual-size scaling, no 'fit to page'  device px for 600 dpi printer = 4960 x 7016 (= A4 @600dpi)  [REAL printer NOT tested - Windows only]
+[PASS] 28. Offline processing (all network connections blocked)  1.2s with sockets disabled
+[PASS] 29. Missing AI model -> clear message, fails fast, app not stuck  0.0s: The AI model (about 170 MB) could not be downloaded.  Reason: [Errno -...
+[PASS] 30. Interrupted model download -> error + Retry offered, no corrupt file left  The downloaded AI model file is incomplete or corrupt.  Plea
+[PASS] 30. Retry succeeds: download with progress, verified, cached for next launches  7 progress updates, 3.0s; cached at /tmp/sm_test_vq_maq2t/empty/SnapMitra/models
+[PASS] 30. Second launch reuses the cached model (no download)  session ready in 1.8s
+[PASS] 31. Cancel processing stops quickly and leaves photos re-processable  stopped in 0.52s, ready=1/10
+[PASS]  6. ONNX session is created once and reused  
+[PASS]  3. User size presets persist (frequently used sizes)  
+
+54/54 checks passed
+
+=== tests/gui_tests.py (real window under a virtual display) ===
+[PASS] Window opens, AI model warms up in the background  2.1s
+[PASS] Window title + branding  
+[PASS] Dashboard shown first (on top); quick sizes built  
+[PASS] RESPONSIVE: UI never froze while AI processed 6 photos  worst freeze 71 ms during 8.4s of processing
+[PASS] Adding photos switches from the dashboard to the workspace  
+[PASS] Per-photo copy counts feed the total  6 photos  -  28 prints in total
+[PASS] Shortcut Ctrl+D duplicates  
+[PASS] Shortcut Ctrl+Z undoes  
+[PASS] Shortcut Ctrl+Y redoes  
+[PASS] Shortcut Delete removes the selected photo  
+[PASS] Shortcut Ctrl+3 opens Preview tab  
+[PASS] Shortcut Ctrl+G generates the sheet  1 page(s)
+[PASS] Reorder moves a photo  
+[PASS] US Passport = 2 x 2 in = 50.8 mm  
+[PASS] Switch to inches converts the numbers (50.8 mm -> 2.0 in)  shows 2.0 in
+[PASS] Typing a size switches the preset box to 'Custom'  1.5 in = 38.1 mm
+[PASS] Back to millimetres converts again  
+[PASS] Stamp Size preset is 25 x 25 mm  
+[PASS] Paper preset 5 x 7 in  
+[PASS] 'Save as preset' adds a reusable size  
+[PASS] Customer-name entry edits the selected photo's label  
+[PASS] Switching text to 'below' reserves a strip in the layout  6.1 mm
+[PASS] ... and 'inside' reserves none  
+[PASS] Live preview draws with text overlay  
+[PASS] Toggle 'remove background' off/on re-uses the cached mask (instant)  0.24s
+[PASS] Auto-save writes the session  
+[PASS] Save project + appears in Recent  
+[PASS] Continue last session restores photos, copies and edits  
+[PASS] Home button returns to the dashboard and offers 'Continue last session'  Continue last session (6 photos)
+[PASS] About dialog opens  
+[PASS] Splash screen builds with the logo  
+[PASS] Window icon set  
+[PASS] No Tk callback exceptions during the whole session  
+
+33/33 GUI checks passed

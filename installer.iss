@@ -1,23 +1,30 @@
-; Inno Setup script - builds a normal Windows installer (no admin rights needed)
+; Inno Setup script - SnapMitra Windows installer (no administrator rights needed)
+#define AppName "SnapMitra"
+#define AppVer  "3.0"
 [Setup]
-AppName=Passport Photo Maker
-AppVersion=2.0
-DefaultDirName={autopf}\PassportPhotoMaker
-DefaultGroupName=Passport Photo Maker
+AppName={#AppName}
+AppVersion={#AppVer}
+AppPublisher=SnapMitra
+DefaultDirName={autopf}\SnapMitra
+DefaultGroupName=SnapMitra
+DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=installer_out
-OutputBaseFilename=PassportPhotoMaker-Setup
+OutputBaseFilename=SnapMitra-Setup
+SetupIconFile=assets\snapmitra.ico
+UninstallDisplayIcon={app}\SnapMitra.exe
+UninstallDisplayName=SnapMitra - Your Smart Photo & Print Studio
+WizardImageFile=assets\wizard_large.bmp
+WizardSmallImageFile=assets\wizard_small.bmp
 Compression=lzma2/fast
 SolidCompression=no
-DisableProgramGroupPage=yes
-UninstallDisplayName=Passport Photo Maker
 
 [Files]
-Source: "dist\PassportPhotoMaker\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
+Source: "dist\SnapMitra\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
 
 [Icons]
-Name: "{autodesktop}\Passport Photo Maker"; Filename: "{app}\PassportPhotoMaker.exe"
-Name: "{group}\Passport Photo Maker"; Filename: "{app}\PassportPhotoMaker.exe"
+Name: "{autodesktop}\SnapMitra"; Filename: "{app}\SnapMitra.exe"; IconFilename: "{app}\SnapMitra.exe"
+Name: "{group}\SnapMitra"; Filename: "{app}\SnapMitra.exe"; IconFilename: "{app}\SnapMitra.exe"
 
 [Run]
-Filename: "{app}\PassportPhotoMaker.exe"; Description: "Start Passport Photo Maker"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\SnapMitra.exe"; Description: "Start SnapMitra"; Flags: nowait postinstall skipifsilent

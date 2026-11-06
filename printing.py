@@ -1,7 +1,6 @@
 """Direct printing to an installed Windows printer at true physical size (via pywin32)."""
 import sys
 
-
 from units import DPI
 
 IS_WIN = sys.platform.startswith("win")
@@ -21,8 +20,13 @@ def list_printers():
     return names, default
 
 
-def print_pages(pages, printer_name, doc_name="Passport photos"):
-    """Each page image is 300 DPI; scale by printer DPI so photos print at exactly their real size."""
+def device_size(page, dpi_x, dpi_y):
+    """Pixels the page occupies on the printer so it prints at exactly its real size (300 DPI image)."""
+    return int(round(page.width / DPI * dpi_x)), int(round(page.height / DPI * dpi_y))
+
+
+def print_pages(pages, printer_name, doc_name="SnapMitra photos", copies=1):
+    """Prints at 100% - no 'fit to page' scaling, so photos keep their physical dimensions."""
     if not IS_WIN:
         raise RuntimeError("Direct printing is available on Windows only. Save as PDF and print that instead.")
     import win32ui
@@ -32,18 +36,16 @@ def print_pages(pages, printer_name, doc_name="Passport photos"):
     hdc.CreatePrinterDC(printer_name)
     try:
         hdc.StartDoc(doc_name)
-        dpi_x = hdc.GetDeviceCaps(88)    # LOGPIXELSX
-        dpi_y = hdc.GetDeviceCaps(90)    # LOGPIXELSY
-        off_x = hdc.GetDeviceCaps(112)   # PHYSICALOFFSETX (non-printable edge)
-        off_y = hdc.GetDeviceCaps(113)   # PHYSICALOFFSETY
-        for pg in pages:
-            if pg.width > pg.height:     # landscape sheet -> rotate so it feeds a portrait page
-                pg = pg.transpose(3)     # ROTATE_90
-            w = int(round(pg.width / DPI * dpi_x))
-            h = int(round(pg.height / DPI * dpi_y))
-            hdc.StartPage()
-            ImageWin.Dib(pg).draw(hdc.GetHandleOutput(), (-off_x, -off_y, -off_x + w, -off_y + h))
-            hdc.EndPage()
+        dpi_x, dpi_y = hdc.GetDeviceCaps(88), hdc.GetDeviceCaps(90)      # LOGPIXELSX / Y
+        off_x, off_y = hdc.GetDeviceCaps(112), hdc.GetDeviceCaps(113)    # PHYSICALOFFSETX / Y (unprintable edge)
+        for _ in range(max(1, copies)):
+            for pg in pages:
+                if pg.width > pg.height:             # landscape sheet -> rotate so it feeds a portrait page
+                    pg = pg.transpose(3)
+                w, h = device_size(pg, dpi_x, dpi_y)
+                hdc.StartPage()
+                ImageWin.Dib(pg).draw(hdc.GetHandleOutput(), (-off_x, -off_y, -off_x + w, -off_y + h))
+                hdc.EndPage()
         hdc.EndDoc()
     finally:
         hdc.DeleteDC()
