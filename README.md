@@ -9,10 +9,21 @@ Fast passport, stamp-size, visa and ID photo sheets for a photography / statione
 | Section | Features |
 |---|---|
 | **1 Photos** | Add photos · import folder · drag & drop · thumbnails · per-photo copies · reorder · duplicate · remove · clear all |
-| **2 Editing** | AI background removal (or keep original) · White / Light blue / Blue / Red / custom colour · zoom · move · rotate · brightness · contrast · sharpness · **text overlay** (customer name, date, custom text; font, size, colour, bold, alignment; *inside* or *below* the photo; optional background; live preview) |
+| **2 Editing** | AI background removal (or keep original) · White / Light blue / Blue / Red / custom colour · zoom · move · rotate · brightness · contrast · sharpness · **text overlay** (customer name, date of birth, photograph / custom date, custom text; font, size, colour, bold, alignment, one or many lines; live preview) – **global** or **individual per photo** (*Edit text* button on every photo) |
 | **3 Layout** | Photo sizes (Indian Passport 35×45, Stamp 25×25, US Passport 2×2 in, visa presets, **custom in mm or inches**, save your own) · A4 / A5 / 4×6 in / 5×7 in / custom paper · orientation (auto picks the best) · margins · gaps · border · **cutting guides** (thin / dotted) · **layout mode: Continuous packing (default) or Group by photo** |
 | **4 Preview & Export** | Sheet preview with page navigation · PNG / JPG / **PDF** (exact paper size) · output folder · print to any installed Windows printer at actual size |
 | Extras | Dashboard · recent projects · save/open project · auto-save & "Continue last session" · undo / redo · keyboard shortcuts (F1) · tooltips |
+
+### Text on photos
+| Position | What happens |
+|---|---|
+| **Inside photo** | text at the bottom centre of the picture (optional background band) |
+| **Below photo – outside image** | a text strip is *added* under the photo, so the cell becomes taller than the selected size (e.g. 35 × 54 mm) |
+| **Below photo – fixed canvas** | the text area is *taken from* the selected size: photo + text are **exactly** the selected size (35 × 45 mm = 40 mm photo + 5 mm text; the text-area height is configurable). The face keeps the same physical head height as the preset |
+
+Text is fitted automatically (font shrinks so nothing is clipped) and is applied after the AI step, so changing text, font, size or colour never repeats background removal.
+
+**Global / Individual text.** *Global*: one text for all photos. *Individual*: every photo's **Edit text** dialog sets *use global text* / *own text* (name, date of birth, photograph date, custom date, custom text, font, size, colour, bold, alignment, position, live preview) / *no text*. Photos left on "global" fall back to the global text. All copies of a photo carry identical text; originals are never modified.
 
 ### Continuous packing
 All photos are one sequence in upload order. Example – P1×4, P2×1, P3×8, P4×3 on 5 columns:
@@ -37,14 +48,15 @@ Open the repo → **Add file → Upload files** → drag in the **contents** of 
 ```
 main.py            entry point, splash, --selftest
 app.py             main window, jobs, undo/redo, projects, shortcuts
-ui_photos.py  ui_editing.py  ui_layout.py  ui_preview.py  ui_home.py   the four sections + dashboard/about/splash
+ui_photos.py  ui_editing.py  ui_layout.py  ui_preview.py  ui_home.py  ui_textdialog.py   the four sections, dashboard/about/splash, per-photo text dialog
 imaging.py         photo pipeline (mask, face, crop, adjustments)      textoverlay.py   text overlay
 layout.py          continuous packing, guides, pages, export           worker.py        background thread
 model.py           ONNX models (bundled / cached / one-time download)  printing.py      Windows printing
 presets.py  settings.py  units.py  branding.py  ui_widgets.py
 assets/            logo, icons (.ico), splash, installer images, fonts
 SnapMitra.spec     PyInstaller config            installer.iss   Inno Setup installer
-tools/             fetch_model.py  make_assets.py  make_sample.py
+docs/              ANDROID_ARCHITECTURE.md  parity_vectors.json  android_feasibility_results.json
+tools/             fetch_model.py  make_assets.py  make_sample.py  benchmark_models.py  make_parity_vectors.py
 tests/             run_tests.py  gui_tests.py  sample_portrait.png  last_results.txt
 .github/workflows/build.yml
 ```
@@ -56,6 +68,9 @@ python tools/fetch_model.py          # downloads the two AI models into ./models
 pyinstaller --noconfirm SnapMitra.spec
 ```
 Run the tests: `python tests/run_tests.py` (and `python tests/gui_tests.py` with a display).
+
+## Android
+Not built yet. `docs/ANDROID_ARCHITECTURE.md` contains the assessment, measurements of the AI models for phones, the technology comparison (native Kotlin recommended), the milestone plan, and golden test vectors (`docs/parity_vectors.json`) generated from this code so an Android port can be verified.
 
 ## Notes
 * **Models:** U2-Net (background, Apache-2.0) and Ultra-Light-Fast-Generic-Face-Detector (face, MIT) run through ONNX Runtime. They are bundled in the installer; if ever missing, a one-time download with progress and Retry is offered.

@@ -8,7 +8,7 @@ import model
 APP_NAME = "SnapMitra"
 TAGLINE = "Your Smart Photo & Print Studio"
 WINDOW_TITLE = "SnapMitra \u2013 Your Smart Photo & Print Studio"
-VERSION = "3.0"
+VERSION = "3.1"
 
 # palette sampled from the supplied logo
 NAVY = "#032A56"

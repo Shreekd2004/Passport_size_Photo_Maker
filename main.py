@@ -17,21 +17,27 @@ log = logging.getLogger("snapmitra")
 
 
 def selftest(img_path, out_dir):
-    """Headless end-to-end check used by the build pipeline: AI + face + text + guides + stamp size + PNG/JPG/PDF."""
+    """Headless end-to-end check used by the build pipeline: AI + face + text (all 3 positions, per-photo) + guides +
+    stamp size + exact fixed-canvas size + PNG/JPG/PDF."""
     import queue
     import imaging
     import layout
     import textoverlay
+    import units
     import worker
 
     os.makedirs(out_dir, exist_ok=True)
     photos = [imaging.Photo(img_path, 4, "Customer One"), imaging.Photo(img_path, 1, "Customer Two"),
               imaging.Photo(img_path, 8, "Customer Three")]
-    ts = textoverlay.TextStyle(enabled=True, source="name", use_date=True, two_lines=True, position="below", size_pt=7)
-    spec = layout.LayoutSpec(photo_w=25, photo_h=25, head=0.62, guides="dotted", caption_mm=textoverlay.caption_mm(ts))
+    photos[1].text_mode, photos[1].ptext = "custom", textoverlay.TextStyle(enabled=True, use_name=True, name="Vishnu K D",
+                                                                          use_dob=True, dob="15/08/2002", multiline=True,
+                                                                          position="fixed", size_pt=7)
+    photos[2].text_mode = "none"
+    ts = textoverlay.TextStyle(enabled=True, use_name=True, use_date=True, multiline=True, position="fixed", size_pt=7)
+    spec = layout.LayoutSpec(photo_w=25, photo_h=25, head=0.62, guides="dotted")
     ok = True
     for fmt in ("PNG", "JPG", "PDF"):
-        job = worker.Job("sheet", photos, dict(remove=True, spec=spec, style=imaging.Style((255, 255, 255), True, ts),
+        job = worker.Job("sheet", photos, dict(remove=True, spec=spec, style=imaging.Style((255, 255, 255), True, ts, "individual"),
                                                save=(os.path.join(out_dir, "selftest"), fmt)))
         q = queue.Queue()
         worker.run_job(job, q)
@@ -41,8 +47,11 @@ def selftest(img_path, out_dir):
         good = last is not None and last[0] == "done" and job.saved and all(os.path.exists(f) for f in job.saved)
         log.info("SELFTEST %s %s", fmt, "PASS" if good else f"FAIL {last}")
         ok = ok and bool(good)
-    log.info("SELFTEST %s", "PASS" if ok else "FAIL")
-    return 0 if ok else 1
+    cell, _ = imaging.final_cell(photos[0], spec, imaging.Style((255, 255, 255), True, ts, "individual"))
+    exact = cell.size == (units.mm_to_px(25), units.mm_to_px(25))
+    log.info("SELFTEST fixed-canvas size %s %s", cell.size, "PASS" if exact else "FAIL")
+    log.info("SELFTEST %s", "PASS" if ok and exact else "FAIL")
+    return 0 if ok and exact else 1
 
 
 def main():

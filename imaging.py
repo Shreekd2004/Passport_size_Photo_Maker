@@ -4,6 +4,7 @@ The expensive AI step runs ONCE per photo. The original image, the mask and the 
 the background colour, switching background removal on/off, zoom, move, rotate, brightness, contrast, sharpness or
 text re-renders instantly - the photo never has to be re-uploaded or re-processed.
 """
+import copy
 import math
 import os
 
@@ -21,12 +22,27 @@ def default_edit():
     return dict(zoom=1.0, dx=0.0, dy=0.0, tilt=0.0, rot90=0, bright=0.0, contrast=0.0, sharp=0.0)
 
 
+_TEXT_OFF = textoverlay.TextStyle(enabled=False)
+
+
 class Style:
-    """Everything (besides size/layout) that changes how a photo looks."""
-    def __init__(self, bg=(255, 255, 255), remove=True, text=None):
+    """Everything (besides size/layout) that changes how a photo looks.
+    text = the GLOBAL text settings; mode = 'global' (same text on every photo) or 'individual'
+    (photos set to 'custom' / 'none' use their own settings, the rest fall back to the global text)."""
+    def __init__(self, bg=(255, 255, 255), remove=True, text=None, mode="global"):
         self.bg = tuple(bg)
         self.remove = bool(remove)
         self.text = text or textoverlay.TextStyle()
+        self.mode = mode
+
+    def text_for(self, p):
+        """The text settings that apply to photo p."""
+        if self.mode == "individual":
+            if p.text_mode == "none":
+                return _TEXT_OFF
+            if p.text_mode == "custom" and p.ptext is not None:
+                return p.ptext
+        return self.text
 
 
 def nice_label(path):
@@ -47,6 +63,8 @@ class Photo:
         self.face_rect = None
         self.face_checked = False
         self.edit = default_edit()
+        self.text_mode = "global"   # global | custom (this photo's own text) | none (no text on this photo)
+        self.ptext = None           # TextStyle used when text_mode == "custom"
         self._layer = None
         self._geom = None
         self.cache_key = None
@@ -58,6 +76,8 @@ class Photo:
         d = Photo(self.path, self.copies, self.label)
         d.src, d.mask, d.face_rect, d.face_checked = self.src, self.mask, self.face_rect, self.face_checked
         d.edit = dict(self.edit)
+        d.text_mode = self.text_mode
+        d.ptext = copy.deepcopy(self.ptext)
         d.state = self.state if self.state in ("ready", "error") else "new"
         d.error = self.error
         return d
@@ -182,32 +202,59 @@ def render(layer, g, edit, head_ratio, bg, out_w, out_h, ss=2):
     return canvas
 
 
-def render_cell(p, spec, style, out_w, ss=1):
-    """Photo + text overlay at an arbitrary width (live preview). -> (cell, photo_height_px)"""
+def effective_head(spec, ts):
+    """Head size (fraction of the PHOTO AREA). In fixed-canvas mode the photo area is shorter than the selected
+    height, so the fraction is raised to keep the same physical head height in mm (e.g. 33 mm for a 35x45 passport)."""
+    fx = textoverlay.fixed_mm(ts, spec.photo_h)
+    if fx <= 0:
+        return spec.head
+    return min(0.92, spec.head * spec.photo_h / max(1.0, spec.photo_h - fx))
+
+
+def _compose(p, spec, style, ts, w, h, fixed_px, strip_px, ppm, ss):
+    """Photo + text -> (cell, height of the area the border is drawn around)."""
+    photo_h = max(2, h - fixed_px)                    # fixed canvas: the photo gets only the remaining height
+    head = effective_head(spec, ts) if fixed_px else spec.head
+    photo = render(p.layer(style.remove), p.geom(style.remove), p.edit, head, style.bg, w, photo_h, ss)
+    if not ts.enabled:
+        return photo, photo_h
+    text = textoverlay.resolve_text(ts, p.label)
+    cell = textoverlay.apply(photo, ts, text, ppm, fixed_px or strip_px)
+    return cell, (h if fixed_px else photo_h)         # fixed canvas: the border encloses photo + text
+
+
+def render_cell(p, spec, style, out_w, ss=1, ts=None, caption_mm=None):
+    """Photo + text overlay at any width (live preview). ts / caption_mm let a dialog preview unsaved settings.
+    -> (cell, border_height_px)"""
+    ts = ts if ts is not None else style.text_for(p)
+    cap = spec.caption_mm if caption_mm is None else caption_mm
     ppm = out_w / spec.photo_w
-    out_h = max(1, int(round(spec.photo_h * ppm)))
-    photo = render(p.layer(style.remove), p.geom(style.remove), p.edit, spec.head, style.bg, out_w, out_h, ss)
-    text = textoverlay.resolve_text(style.text, p.label)
-    strip = int(round(spec.caption_mm * ppm)) if spec.caption_mm > 0 else 0
-    return textoverlay.apply(photo, style.text, text, ppm, strip), out_h
+    h = max(2, int(round(spec.photo_h * ppm)))
+    fixed_px = int(round(textoverlay.fixed_mm(ts, spec.photo_h) * ppm))
+    strip_px = int(round(cap * ppm)) if (ts.enabled and ts.position == "below") else 0
+    return _compose(p, spec, style, ts, out_w, h, fixed_px, strip_px, ppm, ss)
 
 
 def final_cell(p, spec, style, prog=None):
-    """Print-resolution cell (cached until an edit / setting changes). -> (cell, photo_height_px)"""
+    """Print-resolution cell (cached until an edit / setting changes). -> (cell, border_height_px).
+    In fixed-canvas mode the cell is EXACTLY photo_w x photo_h at 300 DPI."""
     w, h = units.mm_to_px(spec.photo_w), units.mm_to_px(spec.photo_h)
-    strip = units.mm_to_px(spec.caption_mm) if spec.caption_mm > 0 else 0
-    text = textoverlay.resolve_text(style.text, p.label)
-    key = (w, h, strip, round(spec.head, 3), style.bg, style.remove, tuple(sorted(p.edit.items())),
-           style.text.sig(), text, p.mask is not None)
+    ts = style.text_for(p)
+    fixed_px = units.mm_to_px(textoverlay.fixed_mm(ts, spec.photo_h)) if ts.enabled else 0
+    strip_px = units.mm_to_px(spec.caption_mm) if (ts.enabled and ts.position == "below" and spec.caption_mm > 0) else 0
+    text = textoverlay.resolve_text(ts, p.label)
+    key = (w, h, fixed_px, strip_px, round(spec.head, 3), style.bg, style.remove, tuple(sorted(p.edit.items())),
+           ts.sig() if ts.enabled else None, text, p.mask is not None)
     if p.cache_key == key and p.cache_img is not None:
         return p.cache_img
     if prog:
         prog("Cropping photograph")
-    photo = render(p.layer(style.remove), p.geom(style.remove), p.edit, spec.head, style.bg, w, h, ss=2)
     if prog:
         prog("Applying text overlay")
-    cell = textoverlay.apply(photo, style.text, text, w / spec.photo_w, strip)
+    cell, border_h = _compose(p, spec, style, ts, w, h, fixed_px, strip_px, w / spec.photo_w, 2)
     if prog:
         prog("Preparing final image")
-    p.cache_key, p.cache_img = key, (cell, h)
+    if fixed_px:
+        assert cell.size == (w, h), f"fixed canvas must be exactly {w}x{h}px, got {cell.size}"
+    p.cache_key, p.cache_img = key, (cell, border_h)
     return p.cache_img

@@ -17,7 +17,7 @@ DEFAULTS = dict(
     fmt="PDF", default_copies=5, output_dir=str(Path.home() / "Pictures" / "SnapMitra"),
     t_enabled=False, t_source="custom", t_custom="", t_date=False, t_date_mode="today", t_date_text="",
     t_two=False, t_font="Segoe UI", t_bold=False, t_size=9.0, t_color="#000000", t_align="center",
-    t_pos="inside", t_voff=0.0, t_bg_on=True, t_bg_color="#FFFFFF",
+    t_pos="inside", t_area=5.0, t_mode="global", t_voff=0.0, t_bg_on=True, t_bg_color="#FFFFFF",
 )
 
 BG_COLORS = {"white": (255, 255, 255), "lightblue": (185, 214, 242), "blue": (36, 112, 214), "red": (200, 35, 45)}
@@ -80,7 +80,8 @@ class Store:
 
 def project_dict(cfg, photos):
     return dict(app="SnapMitra", version=1, settings=cfg,
-                photos=[dict(path=p.path, copies=p.copies, label=p.label, edit=p.edit) for p in photos])
+                photos=[dict(path=p.path, copies=p.copies, label=p.label, edit=p.edit, text_mode=p.text_mode,
+                           ptext=(p.ptext.to_dict() if p.ptext is not None else None)) for p in photos])
 
 
 def write_project(path, cfg, photos):

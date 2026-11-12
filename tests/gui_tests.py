@@ -66,6 +66,45 @@ a.V["t_pos"].set("below"); check("Switching text to 'below' reserves a strip in 
 a.V["t_pos"].set("inside"); check("... and 'inside' reserves none", a.spec().caption_mm == 0)
 # live preview renders w/ overlay (no exception)
 a.nb.select(a.tab_edit); a.draw_editor(); check("Live preview draws with text overlay", a.ed_tk is not None and not errors)
+
+# ---------------- per-photo text: Edit text dialog, Global / Individual modes ----------------
+from ui_textdialog import TextDialog
+from PIL import ImageGrab
+import textoverlay
+a.V["t_enabled"].set(True); a.V["t_mode"].set("global"); a.V["t_pos"].set("inside"); a.V["t_source"].set("custom"); a.V["t_custom"].set("GLOBAL"); pump(0.2)
+P0, P1, P2 = a.photos[0], a.photos[1], a.photos[2]
+check("Every photo row has an 'Edit text' button", all(any(isinstance(w, tk.Widget) and getattr(w, "cget", None) and "Edit text" in str(w.cget("text")) if w.winfo_class() == "TButton" else False for ch in a.rows[p][0].winfo_children() for w in ([ch] + list(ch.winfo_children()))) for p in a.photos))
+d = TextDialog(a, P0); pump(0.5)
+check("Edit-text dialog opens and draws a live preview", d.win.winfo_exists() and hasattr(d, "tk_img"))
+d.v["name"].set("Vishnu K D"); d.v["use_name"].set(True); d.v["use_dob"].set(True); d.v["dob"].set("15/08/2002"); d.v["position"].set("fixed"); d.v["multiline"].set(True); pump(0.4)
+check("Editing any individual setting selects 'Individual text for this photo'", d.v_mode.get() == "custom")
+check("Dialog preview states the fixed canvas keeps the selected size", "exactly the selected size" in d.lbl_info.cget("text"), d.lbl_info.cget("text").replace("\n", " | ")[:140])
+d.win.update(); x, y = d.win.winfo_rootx(), d.win.winfo_rooty(); ImageGrab.grab(bbox=(x, y, x + d.win.winfo_width(), y + d.win.winfo_height())).save("/home/claude/shots/text_dialog.png")
+d.apply(); pump(0.3)
+check("OK applies: this photo now has its own text", P0.text_mode == "custom" and P0.ptext.name == "Vishnu K D" and P0.ptext.dob == "15/08/2002" and P0.ptext.position == "fixed")
+check("Applying individual text switches the text mode to 'Individual'", a.g("t_mode") == "individual")
+check("Photo list shows each photo's text state", "Vishnu" in a.text_summary(P0) and a.text_summary(P1) == "Text: global", f"{a.text_summary(P0)!r} / {a.text_summary(P1)!r}")
+d2 = TextDialog(a, P1); d2.v_mode.set("none"); pump(0.2); d2.apply()
+check("'No text on this photo' disables text for that photo only", P1.text_mode == "none" and a.img_style().text_for(P1).enabled is False and a.img_style().text_for(P2).enabled is True)
+st = a.img_style(); texts = [textoverlay.resolve_text(st.text_for(q), q.label) for q in (P0, P1, P2)]
+check("Individual mode: own text / none / global fallback", texts == ["Vishnu K D\n15/08/2002", "", "GLOBAL"], str(texts))
+a.V["t_mode"].set("global"); pump(0.1); st = a.img_style()
+check("Switching to Global mode: every photo gets the global text again", all(textoverlay.resolve_text(st.text_for(q), q.label) == "GLOBAL" for q in (P0, P1, P2)))
+a.V["t_mode"].set("individual"); pump(0.1)
+t0 = time.time(); calls_before = model.session_ready(); a.V["t_size"].set(12.0); a.V["t_color"].set("#CC0000"); pump(0.3); el, _ = wait_idle()
+check("Changing global font size / colour re-renders instantly, no processing job started", a.active is None and not a.jobs and all(q.state == "ready" for q in a.photos), f"{time.time()-t0:.2f}s")
+a.undo(); r1 = P1.text_mode; a.redo(); pump(0.2)
+check("Undo / Redo restore the text settings changed in the dialog", r1 == "global" and P1.text_mode == "none" and P0.text_mode == "custom")
+a.push_history(); P2.text_mode = "none"; a.undo(); check("Undo restores a photo's text mode", P2.text_mode == "global")
+a.V["t_pos"].set("below"); a.V["t_enabled"].set(True); pump(0.1); P2.text_mode = "global"
+check("Outside-image strip is reserved from the global text when a photo uses it", a.spec().caption_mm > 0, f"{a.spec().caption_mm} mm"); a.V["t_pos"].set("inside")
+d3 = TextDialog(a, P0); d3.v["font"].set("Arial"); d3.v["size_pt"].set(6.5); d3.v["bold"].set(True); d3.apply_look_to_all(); d3.win.destroy()
+check("'Apply this look to all photos' copies font/size/bold, keeps each photo's own words", all(q.ptext is not None and q.ptext.font == "Arial" and q.ptext.size_pt == 6.5 and q.ptext.bold for q in a.photos) and P0.ptext.name == "Vishnu K D")
+pf2 = os.path.join(TMP, "text_proj.snapmitra"); a.project_path = pf2; a.save_project(); dd = json.load(open(pf2))
+a.photos, a.sel = [], None; a.refresh_list(); a.open_project(pf2); wait_idle()
+check("Per-photo text survives Save project / Open project", a.photos[0].text_mode == "custom" and a.photos[0].ptext.dob == "15/08/2002" and a.photos[1].text_mode == "none" and a.g("t_mode") == "individual")
+a.generate(); wait_idle(); check("Sheet generation works with individual text", a.pages_ok and len(a.pages) >= 1)
+
 # background removal toggle is instant
 t0 = time.time(); a.V["remove_bg"].set(False); pump(0.2); w1 = time.time() - t0; a.V["remove_bg"].set(True); pump(0.2); wait_idle()
 check("Toggle 'remove background' off/on re-uses the cached mask (instant)", all(p.state == "ready" for p in a.photos) and w1 < 1.5, f"{w1:.2f}s")

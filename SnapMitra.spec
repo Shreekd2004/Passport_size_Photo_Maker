@@ -5,7 +5,7 @@
 from PyInstaller.utils.hooks import collect_all
 
 datas = [("assets", "assets"), ("models", "models")]      # logo/icons/fonts + AI models are bundled -> fully offline
-binaries, hiddenimports = [], ["PIL.ImageTk", "PIL._tkinter_finder", "win32print", "win32ui", "win32timezone"]
+binaries, hiddenimports = [], ["ui_textdialog", "PIL.ImageTk", "PIL._tkinter_finder", "win32print", "win32ui", "win32timezone"]
 for pkg in ("onnxruntime", "tkinterdnd2", "sv_ttk"):
     d, b, h = collect_all(pkg)
     datas += d

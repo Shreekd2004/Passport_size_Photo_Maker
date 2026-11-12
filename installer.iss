@@ -1,6 +1,6 @@
 ; Inno Setup script - SnapMitra Windows installer (no administrator rights needed)
 #define AppName "SnapMitra"
-#define AppVer  "3.0"
+#define AppVer  "3.1"
 [Setup]
 AppName={#AppName}
 AppVersion={#AppVer}

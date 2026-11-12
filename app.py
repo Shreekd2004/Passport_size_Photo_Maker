@@ -12,6 +12,7 @@ import threading
 import time
 import tkinter as tk
 from collections import deque
+from dataclasses import replace
 from tkinter import filedialog, messagebox, ttk
 
 import branding
@@ -90,23 +91,59 @@ class App(HomeMixin, PhotosMixin, EditingMixin, LayoutMixin, PreviewMixin):
         return settings.BG_COLORS.get(c) or settings.hex_to_rgb(self.g("bg_custom"))
 
     def text_style(self):
+        """GLOBAL text settings (the ones in Editing > Text overlay)."""
         g = self.g
+        src = g("t_source")
         return textoverlay.TextStyle(
-            enabled=g("t_enabled"), source=g("t_source"), custom=g("t_custom"), use_date=g("t_date"),
-            date_mode=g("t_date_mode"), date_text=g("t_date_text"), two_lines=g("t_two"), font=g("t_font"),
-            bold=g("t_bold"), size_pt=max(4.0, float(g("t_size"))), color=settings.hex_to_rgb(g("t_color")),
-            align=g("t_align"), position=g("t_pos"), voff_mm=float(g("t_voff")), bg_on=g("t_bg_on"),
-            bg_color=settings.hex_to_rgb(g("t_bg_color")))
+            enabled=g("t_enabled"), use_name=(src == "name"), use_custom=(src == "custom"), custom=g("t_custom"),
+            use_date=g("t_date"), date_mode=g("t_date_mode"), date_text=g("t_date_text"), multiline=g("t_two"),
+            font=g("t_font"), bold=g("t_bold"), size_pt=max(4.0, float(g("t_size"))), color=settings.hex_to_rgb(g("t_color")),
+            align=g("t_align"), position=g("t_pos"), area_mm=float(g("t_area")), voff_mm=float(g("t_voff")),
+            bg_on=g("t_bg_on"), bg_color=settings.hex_to_rgb(g("t_bg_color")))
 
     def img_style(self):
-        return imaging.Style(self.bg_rgb(), self.g("remove_bg"), self.text_style())
+        return imaging.Style(self.bg_rgb(), self.g("remove_bg"), self.text_style(), self.g("t_mode"))
+
+    def caption_needed(self):
+        """OUTSIDE-mode strip height: the tallest one any photo needs, so every cell on the sheet is the same height."""
+        style = self.img_style()
+        caps = [textoverlay.caption_mm(style.text_for(p)) for p in self.photos] or [textoverlay.caption_mm(style.text)]
+        return max(caps)
+
+    def default_individual_ts(self, photo):
+        """Starting point for a photo's own text: the global look + this customer's name."""
+        return replace(self.text_style(), enabled=True, use_name=True, name=photo.label, use_custom=False, custom="",
+                       use_dob=False, use_cdate=False)
+
+    def text_summary(self, p):
+        if self.g("t_mode") != "individual":
+            return ""
+        if p.text_mode == "none":
+            return "Text: off"
+        if p.text_mode == "custom" and p.ptext is not None:
+            t = textoverlay.resolve_text(p.ptext, p.label).replace("\n", " / ")
+            return "Text: " + (t if len(t) <= 22 else t[:19] + "...")
+        return "Text: global"
+
+    def edit_text(self, p):
+        from ui_textdialog import TextDialog
+        self.select(p)
+        TextDialog(self, p)
+
+    def after_text_change(self):
+        for p in self.photos:
+            p.thumb_key = None
+        self.touch()
+        self.update_info()
+        self.refresh_thumbs()
+        self.redraw_editor()
+        self.mark_dirty()
 
     def spec(self):
         g, unit = self.g, self.g("unit")
-        ts = self.text_style()
         return layout.LayoutSpec(
             photo_w=max(5.0, units.to_mm(g("pw"), unit)), photo_h=max(5.0, units.to_mm(g("ph"), unit)),
-            head=min(0.95, max(0.2, g("head") / 100.0)), caption_mm=textoverlay.caption_mm(ts),
+            head=min(0.95, max(0.2, g("head") / 100.0)), caption_mm=self.caption_needed(),
             paper_name=g("paper"), paper_w=max(20.0, g("paper_w")), paper_h=max(20.0, g("paper_h")),
             orientation=ORIENT.get(g("orient"), "auto"), margin=max(0.0, g("margin")),
             hgap=max(0.0, g("hgap")), vgap=max(0.0, g("vgap")), border=g("border"), border_px=int(g("border_px")),
@@ -290,7 +327,7 @@ class App(HomeMixin, PhotosMixin, EditingMixin, LayoutMixin, PreviewMixin):
 
     # ------------------------------------------------------------------ undo / redo
     def state(self):
-        return [(p, p.copies, p.label, copy.deepcopy(p.edit)) for p in self.photos]
+        return [(p, p.copies, p.label, copy.deepcopy(p.edit), p.text_mode, copy.deepcopy(p.ptext)) for p in self.photos]
 
     def push_history(self, kind=None):
         """Snapshot BEFORE a change. Rapid repeats of the same kind (slider drags) collapse into one step."""
@@ -305,8 +342,9 @@ class App(HomeMixin, PhotosMixin, EditingMixin, LayoutMixin, PreviewMixin):
 
     def restore(self, st):
         self.photos = [r[0] for r in st]
-        for p, c, label, edit in st:
+        for p, c, label, edit, tmode, ptext in st:
             p.copies, p.label, p.edit = c, label, copy.deepcopy(edit)
+            p.text_mode, p.ptext = tmode, copy.deepcopy(ptext)
             p.cache_key = p.thumb_key = None
         if self.sel not in self.photos:
             self.sel = self.photos[0] if self.photos else None
@@ -395,6 +433,9 @@ class App(HomeMixin, PhotosMixin, EditingMixin, LayoutMixin, PreviewMixin):
                 continue
             p = Photo(r["path"], int(r.get("copies", 5)), r.get("label"))
             p.edit.update({k: v for k, v in r.get("edit", {}).items() if k in p.edit})
+            p.text_mode = r.get("text_mode", "global") if r.get("text_mode") in ("global", "custom", "none") else "global"
+            if r.get("ptext"):
+                p.ptext = textoverlay.TextStyle.from_dict(r["ptext"])
             photos.append(p)
         self.photos, self.sel = photos, (photos[0] if photos else None)
         self.pages, self.pages_ok = [], False

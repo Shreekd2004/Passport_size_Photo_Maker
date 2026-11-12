@@ -1,12 +1,12 @@
-SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless; Windows build/print NOT run here)
+SnapMitra test results - 2026-11-12 - Linux sandbox, Python 3.12, headless. Windows build, installer and real printer NOT run here; Android NOT built.
 
 === tests/run_tests.py ===
-[PASS]  1. Single photograph processed  (3.5s)
+[PASS]  1. Single photograph processed  (3.4s)
 [PASS]  5. AI background removal produces a mask  
 [PASS]  6. Face detected; all processing stages reported  stages=['Loading AI model', 'Reading photo', 'Removing background', 'Detecting face', 'Cropping photograph', 'Applying text overlay', 'Preparing final image', 'Done']
-[PASS]  4. Different image formats (jpg, jpeg, png, webp, bmp, tiff, RGBA png, palette png)  8 files, 9.1s, states=all ready
-[PASS]  2. Multiple photographs processed  (3.7s)
-[PASS]  3. Large photograph (6000x4000, 1.9 MB)  working size (1600, 1067) (cap 1600), 1.1s
+[PASS]  4. Different image formats (jpg, jpeg, png, webp, bmp, tiff, RGBA png, palette png)  8 files, 10.1s, states=all ready
+[PASS]  2. Multiple photographs processed  (4.4s)
+[PASS]  3. Large photograph (6000x4000, 1.9 MB)  working size (1600, 1067) (cap 1600), 1.7s
 [PASS] 22. Background colour 'white' applied  corner=(255, 255, 255) expected=(255, 255, 255)
 [PASS] 22. Background colour 'lightblue' applied  corner=(185, 214, 242) expected=(185, 214, 242)
 [PASS] 22. Background colour 'blue' applied  corner=(36, 112, 214) expected=(36, 112, 214)
@@ -27,10 +27,10 @@ SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless
 [PASS] 15. Stamp size 25x25 mm generated  (295, 295)px, 7x10=70 per A4
 [PASS] 16. Custom dimensions & unit conversion (2 x 2 in = 50.8 mm = 600 px)  
 [PASS] 16. Custom 1.5 x 2 in photo renders at 450 x 600 px  (450, 600)
-[PASS] 17. Text INSIDE photo (bottom centre only)  changed rows 476-511 of 531
+[PASS] 17. Text INSIDE photo (bottom centre only)  changed rows 480-515 of 531
 [PASS] 18. Text BELOW photo (photo area untouched, strip added)  cell (413, 603), photo 531px + strip 72px
 [PASS] 19. Different text colours (red inside / blue below)  
-[PASS] 20. Automatic (today) and manual date  'Ravi Kumar  |  05/11/2026' | 'X\n01/01/2030'
+[PASS] 20. Automatic (today) and manual date  'Ravi Kumar  |  12/11/2026' | 'X\n01/01/2030'
 [PASS] 17. Original uploaded file is never modified  
 [PASS] 17. Every duplicate carries the same overlay (5 copies pixel-identical, text present)  
 [PASS] 21. Cutting guides 'thin' drawn in the gap centre  dark fraction along guide = 1.00
@@ -47,22 +47,62 @@ SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless
 [PASS] 27. MEASURED on exported page @300 DPI: photo 35 x 45 mm, gap 4 mm, page 210 x 297 mm  photo 34.97 x 44.96 mm, pitch 38.95 mm (35+4), page 210.0 x 297.0 mm
 [PASS] 27. 4 x 6 inch paper = 1200 x 1800 px  (1200, 1800)
 [PASS] 26. Direct printing LOGIC (mock printer): 2 pages x 2 copies, actual-size scaling, no 'fit to page'  device px for 600 dpi printer = 4960 x 7016 (= A4 @600dpi)  [REAL printer NOT tested - Windows only]
-[PASS] 28. Offline processing (all network connections blocked)  1.2s with sockets disabled
+[PASS] T1. Indian passport 35x45: fixed canvas is EXACTLY 413 x 531 px (35 x 45 mm @300 DPI)  (413, 531)
+[PASS] T1. ... photo area 40 mm + text area 5 mm; the photo pixels are untouched by the text  photo 472px + text 59px
+[PASS] T1. Fixed canvas keeps the PHYSICAL head height of the preset (head 33.3 mm of a 45 mm photo)  33.3 mm in the 40.0 mm photo area (preset: 33.3 mm); ratio 0.74 -> 0.83
+[PASS] T2. Stamp size 25x25: fixed canvas exactly 295 x 295 px, 4 mm text area configurable  (295, 295)
+[PASS] T3. Custom 38.1 x 50.8 mm: fixed canvas exact  (450, 600) expected (450, 600)
+[PASS] T3. Custom 38.7 x 51.3 mm: fixed canvas exact  (457, 606) expected (457, 606)
+[PASS] T3. Custom 30.0 x 40.0 mm: fixed canvas exact  (354, 472) expected (354, 472)
+[PASS] T3. Custom 50.8 x 50.8 mm: fixed canvas exact  (600, 600) expected (600, 600)
+[PASS] T1. Text area 3.0 mm configurable, total still 35 x 45  
+[PASS] T1. Text area 5.0 mm configurable, total still 35 x 45  
+[PASS] T1. Text area 8.0 mm configurable, total still 35 x 45  
+[PASS] T1. Text area 12.0 mm configurable, total still 35 x 45  
+[PASS] T1. Absurd text area is clamped (max 45% of height), total still exact  
+[PASS] T4. Text INSIDE photograph keeps the size 413 x 531  
+[PASS] T6. Outside-image option still ADDS height below the photo  (413, 603) = 531 + 72px strip
+[PASS] T7. Multiple text lines (name / date of birth / date) = 3 separate lines  3 line bands in the text area
+[PASS] T8. Different font colours (red here, blue below)  
+[PASS] T8. ... and blue  
+[PASS] T8. Text-area background colour selectable  corner of text area = (np.uint8(255), np.uint8(235), np.uint8(150))
+[PASS] T9. Clipping prevention (left): very long name at 14 pt is shrunk to fit, nothing cut at the edges  ink spans x=14-369 of 413, y=24-34 of 59
+[PASS] T9. Clipping prevention (center): very long name at 14 pt is shrunk to fit, nothing cut at the edges  ink spans x=29-384 of 413, y=24-34 of 59
+[PASS] T9. Clipping prevention (right): very long name at 14 pt is shrunk to fit, nothing cut at the edges  ink spans x=44-398 of 413, y=24-34 of 59
+[PASS] T9. Five lines in a 5 mm area: font auto-shrinks, all lines stay inside the area  ink rows 6-51 of 59
+[PASS] T10. MEASURED PNG: photo + text = 35 x 45 mm @300 DPI  34.97 x 44.96 mm
+[PASS] T10. MEASURED JPG: photo + text = 35 x 45 mm @300 DPI  34.97 x 44.96 mm
+[PASS] T10. PDF: A4 page 595.2 x 841.9 pt carrying a 2480 x 3508 px (300 DPI) image -> photos print at exactly 35 x 45 mm  2480x3508px over 595.2 x 841.9 pt = 300.0 DPI
+[PASS] T6. Mixed positions on one sheet (outside strip + fixed canvas + none) lay out without overlap  cell heights [603, 531, 531]
+[PASS] T11. Two photographs with different names print different text  same photo area, different text area
+[PASS] T12. Multiple photographs with different dates  ['15/08/2002', '22/04/2001', '01/01/1999']
+[PASS] T13. Photo with text DISABLED: no text and the whole 35 x 45 area is photograph  
+[PASS] T14/15. Individual mode: photo left on 'global' falls back to the global text  
+[PASS] T14. GLOBAL mode: same text on every photo (individual settings ignored)  
+[PASS] T15. INDIVIDUAL mode: each photo uses its own text (Alice / Bob / none / global)  
+[PASS] T16. Individual settings OVERRIDE the global ones (different font size / colour / position too)  
+[PASS] T16. A photo can override the position as well (inside) while others stay fixed  
+[PASS] T17. Changing text / size / colour / font / position does NOT run the AI again  AI calls: 1 (only the first prepare); last re-render 0.09s
+[PASS] T17. ... yet the output really changed  
+[PASS] T11. All 5 copies of an individually-texted photo are pixel-identical, in the exported PNG  
+[PASS] T11. Per-photo text survives project save / load (JSON round-trip)  
+[PASS] 28. Offline processing (all network connections blocked)  1.6s with sockets disabled
 [PASS] 29. Missing AI model -> clear message, fails fast, app not stuck  0.0s: The AI model (about 170 MB) could not be downloaded.  Reason: [Errno -...
 [PASS] 30. Interrupted model download -> error + Retry offered, no corrupt file left  The downloaded AI model file is incomplete or corrupt.  Plea
-[PASS] 30. Retry succeeds: download with progress, verified, cached for next launches  7 progress updates, 3.0s; cached at /tmp/sm_test_vq_maq2t/empty/SnapMitra/models
-[PASS] 30. Second launch reuses the cached model (no download)  session ready in 1.8s
-[PASS] 31. Cancel processing stops quickly and leaves photos re-processable  stopped in 0.52s, ready=1/10
+[PASS] 30. Retry succeeds: download with progress, verified, cached for next launches  6 progress updates, 3.2s; cached at /tmp/sm_test_nflpat6x/empty/SnapMitra/models
+[PASS] 30. Second launch reuses the cached model (no download)  session ready in 1.9s
+[PASS] 31. Cancel processing stops quickly and leaves photos re-processable  stopped in 0.87s, ready=1/10
 [PASS]  6. ONNX session is created once and reused  
 [PASS]  3. User size presets persist (frequently used sizes)  
+[PASS] A0. Android parity vectors (docs/parity_vectors.json) are current with the reference code  regenerate with tools/make_parity_vectors.py after changing layout/text/geometry logic
 
-54/54 checks passed
+94/94 checks passed   (peak memory 3312 MB)
 
 === tests/gui_tests.py (real window under a virtual display) ===
-[PASS] Window opens, AI model warms up in the background  2.1s
+[PASS] Window opens, AI model warms up in the background  2.0s
 [PASS] Window title + branding  
 [PASS] Dashboard shown first (on top); quick sizes built  
-[PASS] RESPONSIVE: UI never froze while AI processed 6 photos  worst freeze 71 ms during 8.4s of processing
+[PASS] RESPONSIVE: UI never froze while AI processed 6 photos  worst freeze 67 ms during 8.6s of processing
 [PASS] Adding photos switches from the dashboard to the workspace  
 [PASS] Per-photo copy counts feed the total  6 photos  -  28 prints in total
 [PASS] Shortcut Ctrl+D duplicates  
@@ -83,7 +123,24 @@ SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless
 [PASS] Switching text to 'below' reserves a strip in the layout  6.1 mm
 [PASS] ... and 'inside' reserves none  
 [PASS] Live preview draws with text overlay  
-[PASS] Toggle 'remove background' off/on re-uses the cached mask (instant)  0.24s
+[PASS] Every photo row has an 'Edit text' button  
+[PASS] Edit-text dialog opens and draws a live preview  
+[PASS] Editing any individual setting selects 'Individual text for this photo'  
+[PASS] Dialog preview states the fixed canvas keeps the selected size  Individual text. Printed text: 'Vishnu K D  /  15/08/2002' | Final size of one photo: 30 x 40.0 mm  (fixed canvas - stays exactly the select
+[PASS] OK applies: this photo now has its own text  
+[PASS] Applying individual text switches the text mode to 'Individual'  
+[PASS] Photo list shows each photo's text state  'Text: Vishnu K D / 15/08/...' / 'Text: global'
+[PASS] 'No text on this photo' disables text for that photo only  
+[PASS] Individual mode: own text / none / global fallback  ['Vishnu K D\n15/08/2002', '', 'GLOBAL']
+[PASS] Switching to Global mode: every photo gets the global text again  
+[PASS] Changing global font size / colour re-renders instantly, no processing job started  0.32s
+[PASS] Undo / Redo restore the text settings changed in the dialog  
+[PASS] Undo restores a photo's text mode  
+[PASS] Outside-image strip is reserved from the global text when a photo uses it  7.5 mm
+[PASS] 'Apply this look to all photos' copies font/size/bold, keeps each photo's own words  
+[PASS] Per-photo text survives Save project / Open project  
+[PASS] Sheet generation works with individual text  
+[PASS] Toggle 'remove background' off/on re-uses the cached mask (instant)  0.22s
 [PASS] Auto-save writes the session  
 [PASS] Save project + appears in Recent  
 [PASS] Continue last session restores photos, copies and edits  
@@ -93,4 +150,10 @@ SnapMitra test results - run on 2026-11-05 (Linux sandbox, Python 3.12, headless
 [PASS] Window icon set  
 [PASS] No Tk callback exceptions during the whole session  
 
-33/33 GUI checks passed
+50/50 GUI checks passed
+
+=== tools/benchmark_models.py (Android feasibility, desktop proxy) ===
+u2net fp32 (current) {'size_mb': 175.998, 'infer_ms_1t': 1221.85, 'load_s': 0.527, 'load_mb': 417.918, 'peak_mb': 891.125, 'infer_ms_4t': 2272.455, 'iou_vs_fp32': 1.0, 'mae_vs_fp32': 0.0}
+u2net int8 (dynamic quant.) {'size_mb': 44.213, 'infer_ms_1t': 891.582, 'load_s': 0.163, 'load_mb': 61.652, 'peak_mb': 556.094, 'infer_ms_4t': 2604.414, 'iou_vs_fp32': 0.992, 'mae_vs_fp32': 1.952}
+u2netp fp32 (small) {'size_mb': 4.575, 'infer_ms_1t': 453.855, 'load_s': 0.05, 'load_mb': 22.344, 'peak_mb': 494.309, 'infer_ms_4t': 974.611, 'iou_vs_fp32': 0.994, 'mae_vs_fp32': 1.78}
+face detector (RFB-320) {'size_mb': 1.271, 'infer_ms_1t': 13.286, 'load_s': 0.03, 'load_mb': 10.676, 'peak_mb': 28.055, 'infer_ms_4t': 37.088}

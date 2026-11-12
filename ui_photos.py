@@ -167,7 +167,10 @@ class PhotosMixin:
     # ---- list drawing ---------------------------------------------------------------------------
     def status_text(self, p):
         if p.state == "ready":
-            return ("Ready", "#15803d") if p.face_found else ("Ready - face not found: adjust the crop by hand", "#b45309")
+            extra = self.text_summary(p)
+            if not p.face_found:
+                return ("Ready - face not found: adjust the crop by hand", "#b45309")
+            return ("Ready" + ("  |  " + extra if extra else ""), "#15803d")
         return {"new": ("Not processed yet", "#666"), "queued": ("Waiting...", "#666"),
                 "processing": ("Processing...", "#0067C5"), "error": ("Error: " + p.error[:70], "#b91c1c")}[p.state]
 
@@ -232,6 +235,8 @@ class PhotosMixin:
         sp = ttk.Spinbox(c, from_=1, to=99, width=4, textvariable=var)
         sp.grid(row=1, column=0)
         tip(sp, "How many prints of this photograph (use the arrows or type a number)")
+        tip(ttk.Button(c, text="Edit text", command=lambda: self.edit_text(p)),
+            "Name / date / custom text for THIS photograph only").grid(row=2, column=0, pady=(3, 0))
         bt = ttk.Frame(row)
         bt.grid(row=0, column=3, rowspan=2)
         ttk.Button(bt, text="\u25B2", width=2, command=lambda: self.move(p, -1)).grid(row=0, column=0)
